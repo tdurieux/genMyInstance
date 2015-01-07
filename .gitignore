@@ -3,3 +3,7 @@
 .settings
 .DS_Store
 target
+.idea/*
+*.iml
+*.ipr
+*.iws
