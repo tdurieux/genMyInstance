@@ -1,9 +1,7 @@
 package com.github.tdurieux.instanceGenerator;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import edu.mit.csail.sdg.alloy4.Err;
@@ -24,61 +22,101 @@ public class AlloyModelFactory {
 	public static String PREFIXHAS = "has";
 
 	private Class<?> type;
-	private Map<String, Field> fields;
+	private Map<String, Field> fields = new HashMap<>();
 	private A4Solution solution;
-	private PrimSig primSig;
+	private Sig primSig;
+	private Map<String, Sig> sigs = new HashMap<>();
+	private Expr constraints;
+	private PrimSig alloyBoolean;
+	private PrimSig alloyString;
 
 	public <T> AlloyModelFactory(Class<T> type) throws Err {
-		A4Options opt = new A4Options();
-		opt.solver = A4Options.SatSolver.SAT4J;
 		this.type = type;
+		createAlloyModel();
+	}
 
-		PrimSig alloyBoolean = new PrimSig("Boolean", Attr.ABSTRACT);
-		PrimSig alloyTrue = new PrimSig("True", alloyBoolean, Attr.ONE);
-		PrimSig alloyFalse = new PrimSig("False", alloyBoolean, Attr.ONE);
-
-		PrimSig alloyString = new PrimSig("AlloyString", Attr.ABSTRACT);
-		PrimSig emptyString = new PrimSig("EmptyString", alloyString, Attr.ONE);
-		PrimSig noEmptyString = new PrimSig("NoEmptyString", alloyString,
-				Attr.ONE);
+	private void createAlloyModel() throws Err {
+		createAlloyPrimitiveTypes();
 
 		if (type.equals(int.class) || type.equals(Integer.class)) {
 			primSig = new PrimSig("INSTANCE");
 			primSig.addField("value", Sig.SIGINT);
+			sigs.put(type.getCanonicalName(), primSig);
 		} else if (type.equals(boolean.class) || type.equals(Boolean.class)) {
 			primSig = new PrimSig("INSTANCE");
 			primSig.addField("value", alloyBoolean);
+			sigs.put(type.getCanonicalName(), primSig);
 		} else if (type.equals(String.class)) {
 			primSig = new PrimSig("INSTANCE");
 			primSig.addField("value", alloyString);
+			sigs.put(type.getCanonicalName(), primSig);
 		} else {
-			primSig = new PrimSig(type.getCanonicalName());
-			fields = extractFields(type);
-			for (Field field : fields.values()) {
-				if (field.getType().equals(String.class)) {
-					primSig.addField(field.getName(), alloyString.loneOf());
-				} else if (field.getType().equals(Integer.class)) {
-					primSig.addField(field.getName(), Sig.SIGINT.loneOf());
-				} else if (field.getType().equals(int.class)) {
-					primSig.addField(field.getName(), Sig.SIGINT.oneOf());
-				} else if (field.getType().equals(boolean.class)) {
-					primSig.addField(field.getName(), alloyBoolean.oneOf());
-				} else if (field.getType().equals(Boolean.class)) {
-					primSig.addField(field.getName(), alloyBoolean.loneOf());
-				}
-			}
+			primSig = createType(type);
 		}
 
-		List<Sig> sigs = Arrays.asList(new Sig[] { alloyBoolean, alloyString,
-				emptyString, noEmptyString, alloyTrue, alloyFalse, primSig });
-		Expr expr1 = primSig.lone().and(
-				alloyString.cardinality().lte(ExprConstant.makeNUMBER(2)));
-		Command cmd1 = new Command(false, 3, 3, 3, expr1);
-		solution = TranslateAlloyToKodkod
-				.execute_command(null, sigs, cmd1, opt);
 	}
 
-	public PrimSig getPrimSig() {
+	private Sig createType(Class<?> type) throws Err {
+		if (sigs.containsKey(type.getCanonicalName())) {
+			return sigs.get(type.getCanonicalName());
+		}
+		PrimSig sig = new PrimSig(type.getCanonicalName());
+		sigs.put(type.getCanonicalName(), sig);
+		fields.putAll(extractFields(type));
+		for (Field field : fields.values()) {
+			addField(sig, field);
+		}
+		return sig;
+	}
+
+	private void addField(Sig sig, Field field) throws Err {
+		if (field.getType().equals(String.class)) {
+			sig.addField(field.getName(), alloyString.loneOf());
+		} else if (field.getType().equals(Integer.class)) {
+			sig.addField(field.getName(), Sig.SIGINT.loneOf());
+		} else if (field.getType().equals(int.class)) {
+			sig.addField(field.getName(), Sig.SIGINT.oneOf());
+		} else if (field.getType().equals(boolean.class)) {
+			sig.addField(field.getName(), alloyBoolean.oneOf());
+		} else if (field.getType().equals(Boolean.class)) {
+			sig.addField(field.getName(), alloyBoolean.loneOf());
+		} else {
+			Sig fieldSig = createType(field.getType());
+			sig.addField(field.getName(), fieldSig.loneOf());
+		}
+	}
+
+	private void createAlloyPrimitiveTypes() throws Err {
+		this.alloyBoolean = new PrimSig("Boolean", Attr.ABSTRACT);
+		sigs.put("Boolean", alloyBoolean);
+		PrimSig alloyTrue = new PrimSig("True", alloyBoolean, Attr.ONE);
+		sigs.put("True", alloyTrue);
+		PrimSig alloyFalse = new PrimSig("False", alloyBoolean, Attr.ONE);
+		sigs.put("False", alloyFalse);
+		this.alloyString = new PrimSig("AlloyString", Attr.ABSTRACT);
+		sigs.put("AlloyString", alloyString);
+		PrimSig emptyString = new PrimSig("EmptyString", alloyString, Attr.ONE);
+		sigs.put("EmptyString", emptyString);
+		PrimSig noEmptyString = new PrimSig("NoEmptyString", alloyString,
+				Attr.ONE);
+		sigs.put("NoEmptyString", noEmptyString);
+
+		/*PrimSig alloyChar = new PrimSig("AlloyChar", Attr.ONE);
+		sigs.put("AlloyChar", alloyChar);
+
+		PrimSig alloyFloat = new PrimSig("AlloyFloat", Attr.ONE);
+		sigs.put("AlloyFloat", alloyFloat);
+
+		PrimSig alloyDouble = new PrimSig("AlloyDouble", Attr.ONE);
+		sigs.put("AlloyDouble", alloyDouble);
+
+		PrimSig alloyByte = new PrimSig("AlloyByte", Attr.ONE);
+		sigs.put("AlloyByte", alloyByte);*/
+
+		constraints = alloyString.cardinality().lte(ExprConstant.makeNUMBER(2));
+	}
+
+	public Sig getPrimSig() {
 		return primSig;
 	}
 
@@ -144,7 +182,16 @@ public class AlloyModelFactory {
 		return fields;
 	}
 
-	public A4Solution getSolution() {
+	public A4Solution getSolution() throws Err {
+		if (solution == null) {
+			A4Options opt = new A4Options();
+			opt.solver = A4Options.SatSolver.SAT4J;
+			Command runCommand = new Command(false, 3, 3, 3,
+					constraints);
+			solution = TranslateAlloyToKodkod.execute_command(null,
+					sigs.values(), runCommand, opt);
+		}
+
 		return solution;
 	}
 }

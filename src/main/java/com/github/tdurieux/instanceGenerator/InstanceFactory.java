@@ -2,9 +2,12 @@ package com.github.tdurieux.instanceGenerator;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import edu.mit.csail.sdg.alloy4.Err;
+import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.PrimSig;
 import edu.mit.csail.sdg.alloy4compiler.translator.A4Solution;
 import edu.mit.csail.sdg.alloy4compiler.translator.A4Tuple;
@@ -18,6 +21,7 @@ public class InstanceFactory<T> {
 
 	private A4Solution solution;
 	private AlloyModelFactory alloyModelFacotry;
+	private Map<String, Object> instances = new HashMap<>();
 
 	public InstanceFactory(Class<T> type) {
 		this.type = type;
@@ -30,7 +34,7 @@ public class InstanceFactory<T> {
 		}
 	}
 
-	private Object getInstance(PrimSig sig, String name, A4Solution sol)
+	private Object getInstance(Sig sig, String name, A4Solution sol)
 			throws Exception {
 		if (sig.label.equals("True")) {
 			return true;
@@ -52,7 +56,12 @@ public class InstanceFactory<T> {
 			A4Tuple a4Tuple = it.next();
 			PrimSig fieldSig = a4Tuple.sig(a4Tuple.arity() - 1);
 			String fieldInstanceName = a4Tuple.atom(a4Tuple.arity() - 1);
-			return getInstance(fieldSig, fieldInstanceName, sol);
+			if(instances.containsKey(fieldInstanceName)) {
+				return instances.get(fieldInstanceName);
+			}
+			Object value = getInstance(fieldSig, fieldInstanceName, sol); 
+			instances.put(fieldInstanceName, value);
+			return value;
 		}
 		Object instance;
 		Class<?> cl = getClass(sig);
@@ -61,6 +70,7 @@ public class InstanceFactory<T> {
 		} else {
 			instance = getClass(sig).newInstance();
 		}
+		instances.put(name, instance);
 		for (edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field f : sig.getFields()) {
 			A4TupleSet values = sol.eval(f);
 			Object value = null;
@@ -70,7 +80,12 @@ public class InstanceFactory<T> {
 				}
 				PrimSig fieldSig = a4Tuple.sig(a4Tuple.arity() - 1);
 				String fieldInstanceName = a4Tuple.atom(a4Tuple.arity() - 1);
-				value = getInstance(fieldSig, fieldInstanceName, sol);
+				if(instances.containsKey(fieldInstanceName)) {
+					value = instances.get(fieldInstanceName);
+				} else {
+					value = getInstance(fieldSig, fieldInstanceName, sol);
+					instances.put(fieldInstanceName, value);
+				}
 				break;
 			}
 			try {
@@ -98,7 +113,7 @@ public class InstanceFactory<T> {
 	}
 	
 
-	private Class<?> getClass(PrimSig sig) throws ClassNotFoundException {
+	private Class<?> getClass(Sig sig) throws ClassNotFoundException {
 		return getClassFromName(sig.label);
 	}
 	
@@ -135,12 +150,14 @@ public class InstanceFactory<T> {
 			index++;
 			try {
 				A4TupleSet tuples = solution.eval(alloyModelFacotry.getPrimSig());
-				if(!tuples.iterator().hasNext()){
+				Iterator<A4Tuple> it = tuples.iterator();
+				if(!it.hasNext()){
 					solution = solution.next();
 					return null;
 				}
+				instances = new HashMap<>();
 				Object instance = getInstance(alloyModelFacotry.getPrimSig(),
-						null, solution);
+						it.next().atom(0), solution);
 				solution = solution.next();
 				return (T) instance;
 			} catch (Exception e) {

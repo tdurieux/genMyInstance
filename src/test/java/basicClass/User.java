@@ -6,6 +6,7 @@ public class User {
 	private int id;
 	public static String type;
 	private boolean isExpired;
+	private User parent;
 
 	public User() {
 	}
@@ -49,9 +50,21 @@ public class User {
 		this.isExpired = isExpired;
 	}
 
-	@Override
-	public String toString() {
+	public User getParent() {
+		return parent;
+	}
+
+	public void setParent(User parent) {
+		this.parent = parent;
+	}
+
+	private String stringRepresention() {
 		return "[" + type + " " + id + "] " + lastname + " " + firstname + " "
 				+ (isExpired ? "EXPIRED" : "VERIFIED");
+	}
+
+	@Override
+	public String toString() {
+		return stringRepresention() + " parent: " + (parent!=null?parent.stringRepresention():null);
 	}
 }
