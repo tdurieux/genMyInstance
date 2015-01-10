@@ -1,4 +1,4 @@
-package com.github.tdurieux.indanceGenerator;
+package com.github.tdurieux.instanceGenerator;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -44,63 +44,75 @@ public class InstanceFactory<T> {
 		if (sig.label.equals("EmptyString")) {
 			return "";
 		}
+		if(sig.label.equals("INSTANCE")) {
+			edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field f = sig.getFields().get(0);
+			A4TupleSet a4TupleSet = sol.eval(f);
+			Iterator<A4Tuple> it = a4TupleSet.iterator();
+			if(!it.hasNext()) return null;
+			A4Tuple a4Tuple = it.next();
+			PrimSig fieldSig = a4Tuple.sig(a4Tuple.arity() - 1);
+			String fieldInstanceName = a4Tuple.atom(a4Tuple.arity() - 1);
+			return getInstance(fieldSig, fieldInstanceName, sol);
+		}
 		Object instance;
 		Class<?> cl = getClass(sig);
 		if (cl.equals(int.class)) {
-			return new Integer(0);
+			return Integer.parseInt(name);
 		} else {
 			instance = getClass(sig).newInstance();
 		}
 		for (edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field f : sig.getFields()) {
 			A4TupleSet values = sol.eval(f);
+			Object value = null;
 			for (A4Tuple a4Tuple : values) {
 				if (!a4Tuple.atom(0).equals(name) && name != null) {
 					continue;
 				}
 				PrimSig fieldSig = a4Tuple.sig(a4Tuple.arity() - 1);
 				String fieldInstanceName = a4Tuple.atom(a4Tuple.arity() - 1);
-				Object value = getInstance(fieldSig, fieldInstanceName, sol);
-				Class<?> clField = value.getClass();
-				if (value instanceof Integer) {
-					value = (int) Integer
-							.parseInt(a4Tuple.atom(a4Tuple.arity() - 1));
-					clField = int.class;
-				}
-				if (value instanceof Boolean) {
-					clField = boolean.class;
-				}
-				try {
-					Method m = type.getMethod(AlloyModelFactory.PREFIXSETTER
-							+ Character.toUpperCase(f.label.charAt(0))
-							+ f.label.substring(1), clField);
-					m.invoke(instance, value);
-					continue;
-				} catch (NoSuchMethodException e) {
-					// test other possibilities
-				}
-				try {
-					Field publicField = type.getField(f.label);
-					publicField.set(instance, value);
-					continue;
-				} catch (NoSuchFieldException e) {
-
-				}
+				value = getInstance(fieldSig, fieldInstanceName, sol);
+				break;
 			}
+			try {
+				Method m = type.getMethod(AlloyModelFactory.PREFIXSETTER
+						+ Character.toUpperCase(f.label.charAt(0))
+						+ f.label.substring(1), alloyModelFacotry.getFields().get(sig.label + f.label).getType());
+				m.invoke(instance, value);
+				continue;
+			} catch (NoSuchMethodException e) {
+				// test other possibilities
+			} catch (IllegalArgumentException e) {
+				// TODO: handle exception
+				e.printStackTrace();
+			}
+			try {
+				Field publicField = type.getField(f.label);
+				publicField.set(instance, value);
+				continue;
+			} catch (NoSuchFieldException e) {
+
+			}
+
 		}
 		return instance;
 	}
+	
 
 	private Class<?> getClass(PrimSig sig) throws ClassNotFoundException {
-		if (sig.label.equals("Int")) {
+		return getClassFromName(sig.label);
+	}
+	
+	private Class<?> getClassFromName(String name) throws ClassNotFoundException {
+		if (name.equals("Int") || name.equals("seq/Int")) {
 			return int.class;
 		}
-		if (sig.label.equals("True")) {
+		if (name.equals("True")) {
 			return Boolean.class;
 		}
-		if (sig.label.equals("seq/Int")) {
-			return int.class;
+		if (name.equals("EmptyString") || name.equals("NoEmptyString")) {
+			return String.class;
 		}
-		return this.getClass().getClassLoader().loadClass(sig.label);
+		return this.getClass().getClassLoader().loadClass(name);
 	}
 
 	public Iterator<T> iterator() {
@@ -113,6 +125,7 @@ public class InstanceFactory<T> {
 
 		@Override
 		public boolean hasNext() {
+			//System.out.println(solution);
 			return ((limit != 0 && index < limit) || (limit == 0))
 					&& solution.satisfiable();
 		}
@@ -121,7 +134,11 @@ public class InstanceFactory<T> {
 		public T next() {
 			index++;
 			try {
-//				System.out.println(solution);
+				A4TupleSet tuples = solution.eval(alloyModelFacotry.getPrimSig());
+				if(!tuples.iterator().hasNext()){
+					solution = solution.next();
+					return null;
+				}
 				Object instance = getInstance(alloyModelFacotry.getPrimSig(),
 						null, solution);
 				solution = solution.next();

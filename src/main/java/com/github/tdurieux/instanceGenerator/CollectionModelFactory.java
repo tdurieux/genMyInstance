@@ -1,4 +1,4 @@
-package com.github.tdurieux.indanceGenerator;
+package com.github.tdurieux.instanceGenerator;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -27,7 +27,7 @@ public class CollectionModelFactory {
 	 *             If the class does not have a public nullory constructor
 	 */
 	public <E> CollectionModelFactory(
-			final Class<? extends Collection> implementation, final Class data,
+			final Class<? extends Collection> implementation, final Class<?> data,
 			final int cardinality) throws InstantiationException,
 			IllegalAccessException {
 		Collection<E> collection = null;

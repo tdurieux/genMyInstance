@@ -1,4 +1,4 @@
-package com.github.tdurieux.indanceGenerator;
+package com.github.tdurieux.instanceGenerator;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -42,21 +42,33 @@ public class AlloyModelFactory {
 		PrimSig noEmptyString = new PrimSig("NoEmptyString", alloyString,
 				Attr.ONE);
 
-		primSig = new PrimSig(type.getCanonicalName(), Attr.ONE);
-		fields = extractFields(type);
-		for (Field field : fields.values()) {
-			if (field.getType().equals(String.class)) {
-				primSig.addField(field.getName(), alloyString.loneOf());
-			} else if (field.getType().equals(Integer.class)) {
-				primSig.addField(field.getName(), Sig.SIGINT.loneOf());
-			} else if (field.getType().equals(int.class)) {
-				primSig.addField(field.getName(), Sig.SIGINT);
-			} else if (field.getType().equals(boolean.class)) {
-				primSig.addField(field.getName(), alloyBoolean);
-			} else if (field.getType().equals(Boolean.class)) {
-				primSig.addField(field.getName(), alloyBoolean.loneOf());
+		if (type.equals(int.class) || type.equals(Integer.class)) {
+			primSig = new PrimSig("INSTANCE");
+			primSig.addField("value", Sig.SIGINT);
+		} else if (type.equals(boolean.class) || type.equals(Boolean.class)) {
+			primSig = new PrimSig("INSTANCE");
+			primSig.addField("value", alloyBoolean);
+		} else if (type.equals(String.class)) {
+			primSig = new PrimSig("INSTANCE");
+			primSig.addField("value", alloyString);
+		} else {
+			primSig = new PrimSig(type.getCanonicalName());
+			fields = extractFields(type);
+			for (Field field : fields.values()) {
+				if (field.getType().equals(String.class)) {
+					primSig.addField(field.getName(), alloyString.loneOf());
+				} else if (field.getType().equals(Integer.class)) {
+					primSig.addField(field.getName(), Sig.SIGINT.loneOf());
+				} else if (field.getType().equals(int.class)) {
+					primSig.addField(field.getName(), Sig.SIGINT.oneOf());
+				} else if (field.getType().equals(boolean.class)) {
+					primSig.addField(field.getName(), alloyBoolean.oneOf());
+				} else if (field.getType().equals(Boolean.class)) {
+					primSig.addField(field.getName(), alloyBoolean.loneOf());
+				}
 			}
 		}
+
 		List<Sig> sigs = Arrays.asList(new Sig[] { alloyBoolean, alloyString,
 				emptyString, noEmptyString, alloyTrue, alloyFalse, primSig });
 		Expr expr1 = primSig.lone().and(
@@ -70,30 +82,45 @@ public class AlloyModelFactory {
 		return primSig;
 	}
 
+	public Map<String, Field> getFields() {
+		return fields;
+	}
+
 	private Map<String, Field> extractFields(Class<?> type) {
 		Map<String, Field> fields = new HashMap<String, Field>();
 		Method[] methods = type.getMethods();
 		for (Method method : methods) {
-			if(!method.getName().startsWith(PREFIXSETTER)) {
+			if (!method.getName().startsWith(PREFIXSETTER)) {
 				continue;
 			}
 			Method getter;
 			String fieldName;
 			char firstLetter;
 			try {
-				getter = type.getMethod(PREFIXGETTER + method.getName().substring(PREFIXSETTER.length()));
-				fieldName = method.getName().substring(PREFIXSETTER.length() + 1);
+				getter = type.getMethod(PREFIXGETTER
+						+ method.getName().substring(PREFIXSETTER.length()));
+				fieldName = method.getName().substring(
+						PREFIXSETTER.length() + 1);
 				firstLetter = method.getName().charAt(PREFIXSETTER.length());
 			} catch (NoSuchMethodException | SecurityException e) {
 				try {
-					getter = type.getMethod(PREFIXHAS + method.getName().substring(PREFIXSETTER.length()));
-					fieldName = method.getName().substring(PREFIXSETTER.length() + 1);
-					firstLetter = method.getName().charAt(PREFIXSETTER.length());
+					getter = type
+							.getMethod(PREFIXHAS
+									+ method.getName().substring(
+											PREFIXSETTER.length()));
+					fieldName = method.getName().substring(
+							PREFIXSETTER.length() + 1);
+					firstLetter = method.getName()
+							.charAt(PREFIXSETTER.length());
 				} catch (NoSuchMethodException | SecurityException e1) {
 					try {
-						getter = type.getMethod(PREFIXIS + method.getName().substring(PREFIXSETTER.length()));
-						fieldName = method.getName().substring(PREFIXSETTER.length() + 1);
-						firstLetter = method.getName().charAt(PREFIXSETTER.length());
+						getter = type.getMethod(PREFIXIS
+								+ method.getName().substring(
+										PREFIXSETTER.length()));
+						fieldName = method.getName().substring(
+								PREFIXSETTER.length() + 1);
+						firstLetter = method.getName().charAt(
+								PREFIXSETTER.length());
 					} catch (NoSuchMethodException | SecurityException e2) {
 						// ignore the method
 						continue;
@@ -113,7 +140,7 @@ public class AlloyModelFactory {
 			fields.put(type.getCanonicalName() + f[i].getName(),
 					new Field(f[i].getName(), f[i].getType()));
 		}
-		
+
 		return fields;
 	}
 

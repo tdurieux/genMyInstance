@@ -1,8 +1,10 @@
-package com.github.tdurieux.indanceGenerator;
+package com.github.tdurieux.instanceGenerator;
 
 import java.util.Iterator;
 
 import org.junit.Test;
+
+import com.github.tdurieux.instanceGenerator.InstanceFactory;
 
 import basicClass.User;
 

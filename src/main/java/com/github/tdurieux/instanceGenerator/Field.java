@@ -1,4 +1,4 @@
-package com.github.tdurieux.indanceGenerator;
+package com.github.tdurieux.instanceGenerator;
 
 public class Field {
 	private String name;
