@@ -68,15 +68,20 @@ public class InstanceFactory<T> {
 			Iterator<A4Tuple> it = a4TupleSet.iterator();
 			if (!it.hasNext())
 				return null;
-			A4Tuple a4Tuple = it.next();
-			PrimSig fieldSig = a4Tuple.sig(a4Tuple.arity() - 1);
-			String fieldInstanceName = a4Tuple.atom(a4Tuple.arity() - 1);
-			if (instances.containsKey(fieldInstanceName)) {
-				return instances.get(fieldInstanceName);
+			while(it.hasNext()) {
+				A4Tuple a4Tuple = it.next();
+				if(!a4Tuple.atom(0).equals(name)) {
+					continue;
+				}
+				PrimSig fieldSig = a4Tuple.sig(a4Tuple.arity() - 1);
+				String fieldInstanceName = a4Tuple.atom(a4Tuple.arity() - 1);
+				if (instances.containsKey(fieldInstanceName)) {
+					return instances.get(fieldInstanceName);
+				}
+				Object value = getInstance(fieldSig, fieldInstanceName, sol);
+				instances.put(fieldInstanceName, value);
+				return value;
 			}
-			Object value = getInstance(fieldSig, fieldInstanceName, sol);
-			instances.put(fieldInstanceName, value);
-			return value;
 		}
 		Object instance;
 		Class<?> cl = getClass(sig);

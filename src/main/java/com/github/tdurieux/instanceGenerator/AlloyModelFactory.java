@@ -8,7 +8,6 @@ import edu.mit.csail.sdg.alloy4.Err;
 import edu.mit.csail.sdg.alloy4compiler.ast.Attr;
 import edu.mit.csail.sdg.alloy4compiler.ast.Command;
 import edu.mit.csail.sdg.alloy4compiler.ast.Expr;
-import edu.mit.csail.sdg.alloy4compiler.ast.ExprConstant;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.PrimSig;
 import edu.mit.csail.sdg.alloy4compiler.translator.A4Options;
@@ -60,7 +59,9 @@ public class AlloyModelFactory {
 			primSig = createType(type);
 		}
 		if (!isArray) {
-			constraints = constraints.and(primSig.lone());
+			constraints = primSig.lone();
+		} else {
+			constraints = primSig.some();
 		}
 	}
 
@@ -123,7 +124,7 @@ public class AlloyModelFactory {
 		 * sigs.put("AlloyByte", alloyByte);
 		 */
 
-		constraints = alloyString.cardinality().lte(ExprConstant.makeNUMBER(2));
+		//constraints = alloyString.cardinality().lte(ExprConstant.makeNUMBER(2));
 	}
 
 	public Sig getPrimSig() {
