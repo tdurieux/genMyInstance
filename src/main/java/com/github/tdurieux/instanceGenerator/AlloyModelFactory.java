@@ -29,6 +29,7 @@ public class AlloyModelFactory {
 	private Expr constraints;
 	private PrimSig alloyBoolean;
 	private PrimSig alloyString;
+	private boolean isArray = false;
 
 	public <T> AlloyModelFactory(Class<T> type) throws Err {
 		this.type = type;
@@ -37,6 +38,11 @@ public class AlloyModelFactory {
 
 	private void createAlloyModel() throws Err {
 		createAlloyPrimitiveTypes();
+
+		if (type.isArray()) {
+			type = (Class<?>) type.getComponentType();
+			this.isArray = true;
+		}
 
 		if (type.equals(int.class) || type.equals(Integer.class)) {
 			primSig = new PrimSig("INSTANCE");
@@ -53,7 +59,9 @@ public class AlloyModelFactory {
 		} else {
 			primSig = createType(type);
 		}
-
+		if (!isArray) {
+			constraints = constraints.and(primSig.lone());
+		}
 	}
 
 	private Sig createType(Class<?> type) throws Err {
@@ -101,17 +109,19 @@ public class AlloyModelFactory {
 				Attr.ONE);
 		sigs.put("NoEmptyString", noEmptyString);
 
-		/*PrimSig alloyChar = new PrimSig("AlloyChar", Attr.ONE);
-		sigs.put("AlloyChar", alloyChar);
-
-		PrimSig alloyFloat = new PrimSig("AlloyFloat", Attr.ONE);
-		sigs.put("AlloyFloat", alloyFloat);
-
-		PrimSig alloyDouble = new PrimSig("AlloyDouble", Attr.ONE);
-		sigs.put("AlloyDouble", alloyDouble);
-
-		PrimSig alloyByte = new PrimSig("AlloyByte", Attr.ONE);
-		sigs.put("AlloyByte", alloyByte);*/
+		/*
+		 * PrimSig alloyChar = new PrimSig("AlloyChar", Attr.ONE);
+		 * sigs.put("AlloyChar", alloyChar);
+		 * 
+		 * PrimSig alloyFloat = new PrimSig("AlloyFloat", Attr.ONE);
+		 * sigs.put("AlloyFloat", alloyFloat);
+		 * 
+		 * PrimSig alloyDouble = new PrimSig("AlloyDouble", Attr.ONE);
+		 * sigs.put("AlloyDouble", alloyDouble);
+		 * 
+		 * PrimSig alloyByte = new PrimSig("AlloyByte", Attr.ONE);
+		 * sigs.put("AlloyByte", alloyByte);
+		 */
 
 		constraints = alloyString.cardinality().lte(ExprConstant.makeNUMBER(2));
 	}
@@ -186,8 +196,7 @@ public class AlloyModelFactory {
 		if (solution == null) {
 			A4Options opt = new A4Options();
 			opt.solver = A4Options.SatSolver.SAT4J;
-			Command runCommand = new Command(false, 3, 3, 3,
-					constraints);
+			Command runCommand = new Command(false, 3, 3, 3, constraints);
 			solution = TranslateAlloyToKodkod.execute_command(null,
 					sigs.values(), runCommand, opt);
 		}

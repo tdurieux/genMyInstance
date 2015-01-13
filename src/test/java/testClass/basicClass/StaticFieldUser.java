@@ -1,21 +1,13 @@
-package basicClass;
+package testClass.basicClass;
 
-public class User {
+public class StaticFieldUser {
 	private String firstname;
 	private String lastname;
 	private int id;
 	public static String type;
 	private boolean isExpired;
-	private User parent;
 
-	public User() {
-	}
-
-	public User(String firstname, String lastname, int id) {
-		super();
-		this.firstname = firstname;
-		this.lastname = lastname;
-		this.id = id;
+	public StaticFieldUser() {
 	}
 
 	public String getFirstname() {
@@ -50,21 +42,9 @@ public class User {
 		this.isExpired = isExpired;
 	}
 
-	public User getParent() {
-		return parent;
-	}
-
-	public void setParent(User parent) {
-		this.parent = parent;
-	}
-
-	private String stringRepresention() {
-		return "[" + type + " " + id + "] " + lastname + " " + firstname + " "
-				+ (isExpired ? "EXPIRED" : "VERIFIED");
-	}
-
 	@Override
 	public String toString() {
-		return stringRepresention() + " parent: " + (parent!=null?parent.stringRepresention():null);
+		return "[" + type + " " + id + "] " + lastname + " " + firstname + " "
+				+ (isExpired ? "EXPIRED" : "VERIFIED");
 	}
 }

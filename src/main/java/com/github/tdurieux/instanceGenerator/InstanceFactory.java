@@ -1,9 +1,12 @@
 package com.github.tdurieux.instanceGenerator;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import edu.mit.csail.sdg.alloy4.Err;
@@ -15,7 +18,8 @@ import edu.mit.csail.sdg.alloy4compiler.translator.A4TupleSet;
 
 public class InstanceFactory<T> {
 
-	private Class<T> type;
+	private Class<?> type;
+	private boolean isArray = false;
 	// number of instance generated, 0 is for all
 	private int limit = 0;
 
@@ -23,14 +27,23 @@ public class InstanceFactory<T> {
 	private AlloyModelFactory alloyModelFacotry;
 	private Map<String, Object> instances = new HashMap<>();
 
-	public InstanceFactory(Class<T> type) {
+	public InstanceFactory(Class<?> type) {
+		if (type.isInterface()) {
+			throw new IllegalArgumentException(
+					"The type must be a class not an interface");
+		}
 		this.type = type;
+		if (type.isArray()) {
+			type = (Class<?>) type.getComponentType();
+			this.isArray = true;
+		}
 		try {
-			alloyModelFacotry = new AlloyModelFactory(type);
+			alloyModelFacotry = new AlloyModelFactory(this.type);
 			solution = alloyModelFacotry.getSolution();
 		} catch (Err e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new RuntimeException(
+					"Unable to create a solution of the class "
+							+ this.type.getCanonicalName(), e);
 		}
 	}
 
@@ -48,18 +61,20 @@ public class InstanceFactory<T> {
 		if (sig.label.equals("EmptyString")) {
 			return "";
 		}
-		if(sig.label.equals("INSTANCE")) {
-			edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field f = sig.getFields().get(0);
+		if (sig.label.equals("INSTANCE")) {
+			edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field f = sig.getFields()
+					.get(0);
 			A4TupleSet a4TupleSet = sol.eval(f);
 			Iterator<A4Tuple> it = a4TupleSet.iterator();
-			if(!it.hasNext()) return null;
+			if (!it.hasNext())
+				return null;
 			A4Tuple a4Tuple = it.next();
 			PrimSig fieldSig = a4Tuple.sig(a4Tuple.arity() - 1);
 			String fieldInstanceName = a4Tuple.atom(a4Tuple.arity() - 1);
-			if(instances.containsKey(fieldInstanceName)) {
+			if (instances.containsKey(fieldInstanceName)) {
 				return instances.get(fieldInstanceName);
 			}
-			Object value = getInstance(fieldSig, fieldInstanceName, sol); 
+			Object value = getInstance(fieldSig, fieldInstanceName, sol);
 			instances.put(fieldInstanceName, value);
 			return value;
 		}
@@ -80,7 +95,7 @@ public class InstanceFactory<T> {
 				}
 				PrimSig fieldSig = a4Tuple.sig(a4Tuple.arity() - 1);
 				String fieldInstanceName = a4Tuple.atom(a4Tuple.arity() - 1);
-				if(instances.containsKey(fieldInstanceName)) {
+				if (instances.containsKey(fieldInstanceName)) {
 					value = instances.get(fieldInstanceName);
 				} else {
 					value = getInstance(fieldSig, fieldInstanceName, sol);
@@ -89,9 +104,14 @@ public class InstanceFactory<T> {
 				break;
 			}
 			try {
-				Method m = type.getMethod(AlloyModelFactory.PREFIXSETTER
-						+ Character.toUpperCase(f.label.charAt(0))
-						+ f.label.substring(1), alloyModelFacotry.getFields().get(sig.label + f.label).getType());
+				Method m = type
+						.getMethod(
+								AlloyModelFactory.PREFIXSETTER
+										+ Character.toUpperCase(f.label
+												.charAt(0))
+										+ f.label.substring(1),
+								alloyModelFacotry.getFields()
+										.get(sig.label + f.label).getType());
 				m.invoke(instance, value);
 				continue;
 			} catch (NoSuchMethodException e) {
@@ -111,13 +131,13 @@ public class InstanceFactory<T> {
 		}
 		return instance;
 	}
-	
 
 	private Class<?> getClass(Sig sig) throws ClassNotFoundException {
 		return getClassFromName(sig.label);
 	}
-	
-	private Class<?> getClassFromName(String name) throws ClassNotFoundException {
+
+	private Class<?> getClassFromName(String name)
+			throws ClassNotFoundException {
 		if (name.equals("Int") || name.equals("seq/Int")) {
 			return int.class;
 		}
@@ -128,6 +148,10 @@ public class InstanceFactory<T> {
 			return String.class;
 		}
 		return this.getClass().getClassLoader().loadClass(name);
+	}
+	
+	public void setLimit(int limit) {
+		this.limit = limit;
 	}
 
 	public Iterator<T> iterator() {
@@ -140,7 +164,7 @@ public class InstanceFactory<T> {
 
 		@Override
 		public boolean hasNext() {
-			//System.out.println(solution);
+			// System.out.println(solution);
 			return ((limit != 0 && index < limit) || (limit == 0))
 					&& solution.satisfiable();
 		}
@@ -149,22 +173,37 @@ public class InstanceFactory<T> {
 		public T next() {
 			index++;
 			try {
-				A4TupleSet tuples = solution.eval(alloyModelFacotry.getPrimSig());
+				A4TupleSet tuples = solution.eval(alloyModelFacotry
+						.getPrimSig());
 				Iterator<A4Tuple> it = tuples.iterator();
-				if(!it.hasNext()){
+				if (!it.hasNext()) {
 					solution = solution.next();
 					return null;
 				}
 				instances = new HashMap<>();
-				Object instance = getInstance(alloyModelFacotry.getPrimSig(),
-						it.next().atom(0), solution);
+				List<Object> instances = new ArrayList<>();
+				while(it.hasNext()) {
+					A4Tuple tuple = it.next();
+					Object instance = getInstance(alloyModelFacotry.getPrimSig(),
+							tuple.atom(0), solution);
+					instances.add(instance);
+				}
 				solution = solution.next();
-				return (T) instance;
+				if (isArray) {
+					int size = instances.size();
+					Object[] array = (Object[]) Array.newInstance(type.getComponentType(), size);
+					for (int i = 0; i < size; i++) {
+						Object instance = instances.get(i);
+						array[i] = instance;
+					}
+					return (T) array;
+				} else {
+					return (T) instances.get(0);
+				}
+
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				throw new RuntimeException("Unable to create the instance", e);
 			}
-			return null;
 		}
 
 		@Override
