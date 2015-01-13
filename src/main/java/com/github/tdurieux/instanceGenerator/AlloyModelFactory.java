@@ -8,6 +8,7 @@ import edu.mit.csail.sdg.alloy4.Err;
 import edu.mit.csail.sdg.alloy4compiler.ast.Attr;
 import edu.mit.csail.sdg.alloy4compiler.ast.Command;
 import edu.mit.csail.sdg.alloy4compiler.ast.Expr;
+import edu.mit.csail.sdg.alloy4compiler.ast.ExprConstant;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig;
 import edu.mit.csail.sdg.alloy4compiler.ast.Sig.PrimSig;
 import edu.mit.csail.sdg.alloy4compiler.translator.A4Options;
@@ -59,9 +60,20 @@ public class AlloyModelFactory {
 			primSig = createType(type);
 		}
 		if (!isArray) {
-			constraints = primSig.lone();
+			boolean isRecursive = false;
+			for (Field field : this.fields.values()) {
+				if(field.getType().equals(type)) {
+					isRecursive = true;
+					break;
+				}
+			}
+			if(isRecursive) {
+				constraints = constraints.and(primSig.some());
+			} else {
+				constraints = constraints.and(primSig.lone());
+			}
 		} else {
-			constraints = primSig.some();
+			constraints = constraints.and(primSig.some());
 		}
 	}
 
@@ -71,10 +83,11 @@ public class AlloyModelFactory {
 		}
 		PrimSig sig = new PrimSig(type.getCanonicalName());
 		sigs.put(type.getCanonicalName(), sig);
-		fields.putAll(extractFields(type));
-		for (Field field : fields.values()) {
+		Map<String, Field> classFields = extractFields(type);
+		for (Field field : classFields.values()) {
 			addField(sig, field);
 		}
+		fields.putAll(classFields);
 		return sig;
 	}
 
@@ -145,6 +158,7 @@ public class AlloyModelFactory {
 				sig.addField(field.getName(), fieldSig.setOf());
 			} else { 
 				sig.addField(field.getName(), fieldSig.loneOf());
+				constraints = constraints.and(fieldSig.cardinality().lte(ExprConstant.makeNUMBER(1)));
 			}
 		}
 	}
@@ -178,7 +192,7 @@ public class AlloyModelFactory {
 		 * sigs.put("AlloyByte", alloyByte);
 		 */
 
-		//constraints = alloyString.cardinality().lte(ExprConstant.makeNUMBER(2));
+		constraints = alloyTrue.one();
 	}
 
 	public Sig getPrimSig() {

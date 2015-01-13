@@ -68,9 +68,9 @@ public class InstanceFactory<T> {
 			Iterator<A4Tuple> it = a4TupleSet.iterator();
 			if (!it.hasNext())
 				return null;
-			while(it.hasNext()) {
+			while (it.hasNext()) {
 				A4Tuple a4Tuple = it.next();
-				if(!a4Tuple.atom(0).equals(name)) {
+				if (!a4Tuple.atom(0).equals(name)) {
 					continue;
 				}
 				PrimSig fieldSig = a4Tuple.sig(a4Tuple.arity() - 1);
@@ -108,43 +108,56 @@ public class InstanceFactory<T> {
 					instances.put(fieldInstanceName, value);
 				}
 			}
-			com.github.tdurieux.instanceGenerator.Field field = alloyModelFacotry.getFields().get(sig.label + f.label);
+			com.github.tdurieux.instanceGenerator.Field field = alloyModelFacotry
+					.getFields().get(sig.label + f.label);
 			try {
-				Method m = type
-						.getMethod(
-								AlloyModelFactory.PREFIXSETTER
-										+ Character.toUpperCase(f.label
-												.charAt(0))
-										+ f.label.substring(1),field.getType());
-				if(field.getType().isArray()) {
-					T[] array = localInstances.toArray((T[]) Array.newInstance(field.getType().getComponentType(), localInstances.size()));
+				Method m = type.getMethod(
+						AlloyModelFactory.PREFIXSETTER
+								+ Character.toUpperCase(f.label.charAt(0))
+								+ f.label.substring(1), field.getType());
+				if (field.getType().isArray()) {
+					T[] array = localInstances.toArray((T[]) Array.newInstance(
+							field.getType().getComponentType(),
+							localInstances.size()));
 					m.invoke(instance, array);
 				} else {
 					Object value = null;
-					if(localInstances.size() > 0) {
+					if (localInstances.size() > 0) {
 						value = localInstances.get(0);
 					}
 					m.invoke(instance, value);
 				}
-				
+
 				continue;
 			} catch (NoSuchMethodException e) {
 				// test other possibilities
 			}
 			try {
-				Field publicField = type.getField(f.label);
-				if(field.getType().isArray()) {
-					
+				Field publicField = instance.getClass().getField(f.label);
+				if (field.getType().isArray()) {
+
 					int size = localInstances.size();
-					if(field.getType().isPrimitive()) {
-						Object[] array = (Object[]) Array.newInstance(field.getType().getComponentType(), size);
+					Class<?> fieldType = field.getType().getComponentType();
+					if (!fieldType.isPrimitive()) {
+						Object[] array = (Object[]) Array.newInstance(
+								fieldType, size);
 						for (int i = 0; i < size; i++) {
 							Object value = localInstances.get(i);
 							array[i] = value;
 						}
 						publicField.set(instance, array);
+					} else if (fieldType.equals(Boolean.class)
+							|| fieldType.equals(boolean.class)) {
+						boolean[] array = (boolean[]) Array.newInstance(
+								boolean.class, size);
+						for (int i = 0; i < size; i++) {
+							boolean value = (boolean) localInstances.get(i);
+							array[i] = value;
+						}
+						publicField.set(instance, array);
 					} else {
-						int[] array = (int[]) Array.newInstance(int.class, size);
+						int[] array = (int[]) Array
+								.newInstance(int.class, size);
 						for (int i = 0; i < size; i++) {
 							int value = (int) localInstances.get(i);
 							array[i] = value;
@@ -153,7 +166,7 @@ public class InstanceFactory<T> {
 					}
 				} else {
 					Object value = null;
-					if(localInstances.size() > 0) {
+					if (localInstances.size() > 0) {
 						value = localInstances.get(0);
 					}
 					publicField.set(instance, value);
