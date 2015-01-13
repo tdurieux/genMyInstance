@@ -46,7 +46,7 @@ public class InstanceFactoryTest {
 			count++;
 		}
 		// The Alloy model generate maximum 5 different instances
-		Assert.assertEquals(10, count);
+		Assert.assertEquals(9, count);
 	}
 
 	/**

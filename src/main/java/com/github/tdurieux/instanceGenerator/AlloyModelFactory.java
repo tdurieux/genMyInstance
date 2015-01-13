@@ -79,19 +79,73 @@ public class AlloyModelFactory {
 	}
 
 	private void addField(Sig sig, Field field) throws Err {
-		if (field.getType().equals(String.class)) {
-			sig.addField(field.getName(), alloyString.loneOf());
-		} else if (field.getType().equals(Integer.class)) {
-			sig.addField(field.getName(), Sig.SIGINT.loneOf());
-		} else if (field.getType().equals(int.class)) {
-			sig.addField(field.getName(), Sig.SIGINT.oneOf());
-		} else if (field.getType().equals(boolean.class)) {
-			sig.addField(field.getName(), alloyBoolean.oneOf());
-		} else if (field.getType().equals(Boolean.class)) {
-			sig.addField(field.getName(), alloyBoolean.loneOf());
+		boolean isArray = false;
+		Class<?> fieldType = field.getType();
+		if(fieldType.isArray()) {
+			isArray = true;
+			fieldType = fieldType.getComponentType();
+		} 
+		if (fieldType.equals(String.class)) {
+			if(isArray) {
+				sig.addField(field.getName(), alloyString.setOf());
+			} else { 
+				sig.addField(field.getName(), alloyString.loneOf());
+			}
+		} else if (fieldType.equals(Integer.class)) {
+			if(isArray) {
+				sig.addField(field.getName(), Sig.SIGINT.setOf());
+			} else { 
+				sig.addField(field.getName(), Sig.SIGINT.loneOf());
+			}
+		} else if (fieldType.equals(int.class)) {
+			if(isArray) {
+				sig.addField(field.getName(), Sig.SIGINT.setOf());
+			} else { 
+				sig.addField(field.getName(), Sig.SIGINT.oneOf());
+			}
+		} else if (fieldType.equals(Float.class)) {
+			if(isArray) {
+				sig.addField(field.getName(), Sig.SIGINT.setOf());
+			} else { 
+				sig.addField(field.getName(), Sig.SIGINT.loneOf());
+			}
+		} else if (fieldType.equals(float.class)) {
+			if(isArray) {
+				sig.addField(field.getName(), Sig.SIGINT.setOf());
+			} else { 
+				sig.addField(field.getName(), Sig.SIGINT.oneOf());
+			}
+		} else if (fieldType.equals(Double.class)) {
+			if(isArray) {
+				sig.addField(field.getName(), Sig.SIGINT.setOf());
+			} else { 
+				sig.addField(field.getName(), Sig.SIGINT.loneOf());
+			}
+		} else if (fieldType.equals(double.class)) {
+			if(isArray) {
+				sig.addField(field.getName(), Sig.SIGINT.setOf());
+			} else { 
+				sig.addField(field.getName(), Sig.SIGINT.oneOf());
+			}
+		} else if (fieldType.equals(boolean.class)) {
+			if(isArray) {
+				sig.addField(field.getName(), alloyBoolean.setOf());
+			} else { 
+				sig.addField(field.getName(), alloyBoolean.oneOf());
+			}
+		} else if (fieldType.equals(Boolean.class)) {
+			if(isArray) {
+				sig.addField(field.getName(), alloyBoolean.setOf());
+			} else { 
+				sig.addField(field.getName(), alloyBoolean.loneOf());
+			}
 		} else {
 			Sig fieldSig = createType(field.getType());
-			sig.addField(field.getName(), fieldSig.loneOf());
+			if(isArray) {
+				sig.addField(field.getName(), fieldSig.setOf());
+			} else { 
+				sig.addField(field.getName(), fieldSig.loneOf());
+			}
 		}
 	}
 

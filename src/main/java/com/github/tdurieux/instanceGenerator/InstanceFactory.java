@@ -93,7 +93,7 @@ public class InstanceFactory<T> {
 		instances.put(name, instance);
 		for (edu.mit.csail.sdg.alloy4compiler.ast.Sig.Field f : sig.getFields()) {
 			A4TupleSet values = sol.eval(f);
-			Object value = null;
+			List<Object> localInstances = new ArrayList<>();
 			for (A4Tuple a4Tuple : values) {
 				if (!a4Tuple.atom(0).equals(name) && name != null) {
 					continue;
@@ -101,36 +101,66 @@ public class InstanceFactory<T> {
 				PrimSig fieldSig = a4Tuple.sig(a4Tuple.arity() - 1);
 				String fieldInstanceName = a4Tuple.atom(a4Tuple.arity() - 1);
 				if (instances.containsKey(fieldInstanceName)) {
-					value = instances.get(fieldInstanceName);
+					localInstances.add(instances.get(fieldInstanceName));
 				} else {
-					value = getInstance(fieldSig, fieldInstanceName, sol);
+					Object value = getInstance(fieldSig, fieldInstanceName, sol);
+					localInstances.add(value);
 					instances.put(fieldInstanceName, value);
 				}
-				break;
 			}
+			com.github.tdurieux.instanceGenerator.Field field = alloyModelFacotry.getFields().get(sig.label + f.label);
 			try {
 				Method m = type
 						.getMethod(
 								AlloyModelFactory.PREFIXSETTER
 										+ Character.toUpperCase(f.label
 												.charAt(0))
-										+ f.label.substring(1),
-								alloyModelFacotry.getFields()
-										.get(sig.label + f.label).getType());
-				m.invoke(instance, value);
+										+ f.label.substring(1),field.getType());
+				if(field.getType().isArray()) {
+					T[] array = localInstances.toArray((T[]) Array.newInstance(field.getType().getComponentType(), localInstances.size()));
+					m.invoke(instance, array);
+				} else {
+					Object value = null;
+					if(localInstances.size() > 0) {
+						value = localInstances.get(0);
+					}
+					m.invoke(instance, value);
+				}
+				
 				continue;
 			} catch (NoSuchMethodException e) {
 				// test other possibilities
-			} catch (IllegalArgumentException e) {
-				// TODO: handle exception
-				e.printStackTrace();
 			}
 			try {
 				Field publicField = type.getField(f.label);
-				publicField.set(instance, value);
+				if(field.getType().isArray()) {
+					
+					int size = localInstances.size();
+					if(field.getType().isPrimitive()) {
+						Object[] array = (Object[]) Array.newInstance(field.getType().getComponentType(), size);
+						for (int i = 0; i < size; i++) {
+							Object value = localInstances.get(i);
+							array[i] = value;
+						}
+						publicField.set(instance, array);
+					} else {
+						int[] array = (int[]) Array.newInstance(int.class, size);
+						for (int i = 0; i < size; i++) {
+							int value = (int) localInstances.get(i);
+							array[i] = value;
+						}
+						publicField.set(instance, array);
+					}
+				} else {
+					Object value = null;
+					if(localInstances.size() > 0) {
+						value = localInstances.get(0);
+					}
+					publicField.set(instance, value);
+				}
 				continue;
 			} catch (NoSuchFieldException e) {
-
+				// test other possibilities
 			}
 
 		}
@@ -154,7 +184,7 @@ public class InstanceFactory<T> {
 		}
 		return this.getClass().getClassLoader().loadClass(name);
 	}
-	
+
 	public void setLimit(int limit) {
 		this.limit = limit;
 	}
@@ -187,16 +217,18 @@ public class InstanceFactory<T> {
 				}
 				instances = new HashMap<>();
 				List<Object> instances = new ArrayList<>();
-				while(it.hasNext()) {
+				while (it.hasNext()) {
 					A4Tuple tuple = it.next();
-					Object instance = getInstance(alloyModelFacotry.getPrimSig(),
-							tuple.atom(0), solution);
+					Object instance = getInstance(
+							alloyModelFacotry.getPrimSig(), tuple.atom(0),
+							solution);
 					instances.add(instance);
 				}
 				solution = solution.next();
 				if (isArray) {
 					int size = instances.size();
-					Object[] array = (Object[]) Array.newInstance(type.getComponentType(), size);
+					Object[] array = (Object[]) Array.newInstance(
+							type.getComponentType(), size);
 					for (int i = 0; i < size; i++) {
 						Object instance = instances.get(i);
 						array[i] = instance;
